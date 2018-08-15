@@ -115,7 +115,7 @@
 	
 	 var mailOptions = {
 		from: 'customer@mail.com',
-	   to: 'greatroyalone@outlook.com',
+	   to: 'itokonoha8972@outlook.com',
 	   subject: 'Sending Email using Node.js',
 	   text: 'That was easy!'
 	 };
