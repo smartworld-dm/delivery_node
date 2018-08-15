@@ -144,7 +144,7 @@ exports.getSupportData = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -175,7 +175,7 @@ exports.getAboutMoney = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -211,7 +211,7 @@ exports.saveTerms = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -253,7 +253,7 @@ exports.saveSupport = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -289,7 +289,7 @@ exports.getTerms = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -326,7 +326,7 @@ exports.saveAbout = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -362,7 +362,7 @@ exports.getAboutData = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 

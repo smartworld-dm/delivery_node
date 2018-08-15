@@ -27,6 +27,8 @@ module.exports = function (app) {
     app.post('/saveUserProfile', Auth.saveUserProfile);
     app.post('/changeUserPassword', Auth.changeUserPassword);
     app.post('/getCustomers', Auth.getCustomers);
+
+    app.post('/updateNotifications', Auth.updateNotifications);
     
 
     app.post('/uploadImage', Data.uploadImage);

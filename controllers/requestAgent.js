@@ -12,7 +12,11 @@ colors.setTheme({
     receivedEvent: 'lightcyan'
 });
 
+var Socket = require('./socket');
+var Config = require('./config').Config;
 
+var nodemailer = require('nodemailer');
+var transporter = nodemailer.createTransport(Config.emailConfig);
 //trace
 var logger = require('tracer').colorConsole({
     format: [
@@ -45,7 +49,7 @@ exports.acceptAgentRequest = function(req,res,next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 
@@ -78,6 +82,30 @@ exports.acceptAgentRequest = function(req,res,next) {
 				data.timestamp = new Date().getTime();
 				data.reason = params.reason;
 				data.percentage = 10;
+
+				var sockets = Socket.getOnlineSockets();
+
+				for(var i=0; i<sockets.length; i++) {
+					var socket = sockets[i];
+					if(socket.id === data.socketID) {
+						socket.emit('messageFromAdmin', {
+							message: data.reason
+						});
+					}
+				}
+
+
+				FBase.ref('users').orderByChild('uid').equalTo(`${data.uid}`).once('value', function (snapshot) {
+					var response = snapshot.val();
+					if (response) {
+						for (var key in response) {
+							var user = response[key];
+							user.type = "agent";
+							FBase.ref('users/' + data.uid ).set(user);
+						}
+					}
+				});
+
                 FBase.ref('requestAgents/' + params.request_id ).set(data,function(err) {
 
                     if (err) {
@@ -111,7 +139,7 @@ exports.rejectAgentRequest = function(req,res,next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 
@@ -132,17 +160,26 @@ exports.rejectAgentRequest = function(req,res,next) {
 				logger.info(request);
 				makeResponse(res, status, message, data);
 			} else {
-                logger.info(request);
 
-                
                 for(var key in request){
                     data = request[key];
                 }
 
-                logger.info(data);
 				data.status = 'rejected';
 				data.reason = params.reason;
 				data.timestamp = new Date().getTime();
+
+				var sockets = Socket.getOnlineSockets();
+
+				for(var i=0; i<sockets.length; i++) {
+					var socket = sockets[i];
+					if(socket.id === data.socketID) {
+						socket.emit('messageFromAdmin', {
+							message: data.reason
+						});
+					}
+				}
+
                 FBase.ref('requestAgents/' + params.request_id ).set(data,function(err) {
 
                     if (err) {
@@ -286,7 +323,7 @@ exports.addAgentRequest = function (req, res, next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 
@@ -326,6 +363,39 @@ exports.addAgentRequest = function (req, res, next) {
 					data = request;
 				}
 				logger.info(message);
+
+				var mailOptions = {
+					from: 'noreply@test.com',
+					to: 'managementdp@outlook.sa',
+					subject: 'A New HomeStore Request',
+					text: 'A New HomeStore Request'
+				  };
+				  
+
+				transporter.sendMail(mailOptions, function(error, info){
+					if (error) {
+					  console.log(error);
+					} else {
+					  console.log('Email sent: ' + info.response);
+					}
+				  });
+				
+				mailOptions = {
+					from: 'noreply@test.com',
+					to: 'careerdp@outlook.sa',
+					subject: 'A New HomeStore Request',
+					text: 'A New HomeStore Request'
+				  };
+				  
+
+				transporter.sendMail(mailOptions, function(error, info){
+					if (error) {
+					  console.log(error);
+					} else {
+					  console.log('Email sent: ' + info.response);
+					}
+				  });
+				  
 				makeResponse(res, status, message, data);
 			});
 

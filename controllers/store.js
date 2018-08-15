@@ -94,7 +94,7 @@ exports.getMyStore = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -112,7 +112,7 @@ exports.getMyStore = function (req, res, next) {
             var store;
 
             for (var s in stores) {
-                if (stores[s].owner.uid == params.uid) {
+                if (stores[s].owner.uid == params.uid && stores[s].type === 'homeStore') {
                     store = stores[s];
                     break;
                 }
@@ -137,7 +137,7 @@ exports.getPlaces = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -182,7 +182,7 @@ exports.deleteStore =  function (req, res, next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 
@@ -218,7 +218,7 @@ exports.updateHomeStore =  function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -255,7 +255,7 @@ exports.updateStore =  function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 

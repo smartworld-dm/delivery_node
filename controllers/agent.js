@@ -75,7 +75,7 @@ exports.activateAgent = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -146,7 +146,6 @@ exports.changePercentage = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
 
     var validationresult = inspector.validate(schema, params);
 
@@ -223,7 +222,7 @@ exports.updateAgent = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -301,7 +300,7 @@ exports.addAgentNamePassword = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -355,7 +354,7 @@ exports.addAgentNamePassword = function (req, res, next) {
 }
 
 exports.updateAgentLocation = function (req, res, next) {
-    logger.info('EXPRESS: post("/getAgents") --> RECEIVED'.event);
+    logger.info('EXPRESS: post("/updateAgentLocation") --> RECEIVED'.event);
 
     var status, message, data;
 
@@ -372,7 +371,7 @@ exports.updateAgentLocation = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -426,7 +425,7 @@ exports.updateAgentLocation = function (req, res, next) {
 
 
 exports.pauseAgent = function (req, res, next) {
-    logger.info('EXPRESS: post("/getAgents") --> RECEIVED'.event);
+    logger.info('EXPRESS: post("/pauseAgent") --> RECEIVED'.event);
 
     var status, message, data;
 
@@ -440,7 +439,7 @@ exports.pauseAgent = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 

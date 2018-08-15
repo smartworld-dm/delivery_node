@@ -6,7 +6,7 @@
 
 
 	var Config = require('./controllers/config').Config;
-	
+
 	var sockets = [];
 	var onlineAgents = [];
 
@@ -66,11 +66,11 @@
 	firebase.initializeApp(config);
 	// console.log('Firebase --> INITED');
 
-// firebase.initializeApp({
-// 	databaseURL: "https://delivery-plan.firebaseio.com/",
-// 	serviceAccount: __dirname + "/credentials/delivery-plan.json"
-// });
-var FBase = firebase.database();
+	// firebase.initializeApp({
+	// 	databaseURL: "https://delivery-plan.firebaseio.com/",
+	// 	serviceAccount: __dirname + "/credentials/delivery-plan.json"
+	// });
+	var FBase = firebase.database();
 
 
 	//express
@@ -103,6 +103,30 @@ var FBase = firebase.database();
 		}
 	});
 
+	 const nodemailer = require('nodemailer');
+
+	 var transporter = nodemailer.createTransport({
+	   service: 'gmail',
+	   auth: {
+	 	user: 'icss666@gmail.com',
+ 		pass: 'nanowork'
+	   }
+	 });
+	
+	 var mailOptions = {
+		from: 'customer@mail.com',
+	   to: 'greatroyalone@outlook.com',
+	   subject: 'Sending Email using Node.js',
+	   text: 'That was easy!'
+	 };
+	
+	 transporter.sendMail(mailOptions, function(error, info){
+	   if (error) {
+	 	console.log(error);
+	   } else {
+	 	console.log('Email sent: ' + info.response);
+	   }
+	 });
 	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DEPENDENCIES - END ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
@@ -132,7 +156,7 @@ var FBase = firebase.database();
 		console.log('                                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|'.error);
 	});
 
-	
+
 	// default route
 	app.get('*', function (req, res) {
 		logger.info('EXPRESS: get("*") --> RECEIVED'.event);
@@ -148,7 +172,7 @@ var FBase = firebase.database();
 	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ROUTES - START ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-	
+
 
 
 	app.post('/newHomeStoreDeliveryRequestForAgent', function (req, res) {

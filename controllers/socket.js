@@ -320,33 +320,29 @@ function makeNotification(uid, message) {
         status: 'unread'
     };
 
-    logger.info('makeNotification');
-
-    FBase.ref('users/' + uid + '/notifications').push(notification, function (e) {
-        if (e) {
-            defer.reject(e);
-            logger.info('makeNotification failure');
-        } else {
-
-            logger.info('makeNotification pushed notifications');
-
-            FBase.ref('users/' + uid).once('value', function (snpn) {
-                var user = snpn.val();
-                logger.info('makeNotification success');
-                logger.info(user.socketID)
-                for (var s in sockets) {
-                    logger.info(sockets[s].id)
-                    if (sockets[s].id == user.socketID) {
-                        logger.info('socket emit');
-                        sockets[s].emit('notifications', user.notifications);
-                        break;
+    // if(uid) {
+        FBase.ref('users/' + uid + '/notifications').push(notification, function (e) {
+            if (e) {
+                defer.reject(e);
+            } else {
+                FBase.ref('users/' + uid).once('value', function (snpn) {
+                    var user = snpn.val();
+                    for (var s in sockets) {
+                        logger.info(sockets[s].id)
+                        if (sockets[s].id == user.socketID) {
+                            logger.info('socket emit');
+                            sockets[s].emit('notifications', user.notifications);
+                            break;
+                        }
                     }
-                }
-
-                defer.resolve(true);
-            });
-        }
-    });
+                    defer.resolve(true);
+                });
+            }
+        });
+    // }
+    // else {
+    //     logger.info('user id is undefined');
+    // }
 
     return defer.promise;
 }

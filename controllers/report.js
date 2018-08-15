@@ -29,26 +29,18 @@ var logger = require('tracer').colorConsole({
 var inspector = require('schema-inspector');
 
 
-exports.reportCustomers = function(req,res,next) {
+exports.reportCustomers = function (req, res, next) {
     logger.info('post("/reportCustomers") --> RECEIVED'.event);
     var status, message, data;
 
     var customers = [];
 
     var schema = {
-        type: 'object',
-        properties: {
-            from_date: {
-                type: 'string'
-            },
-            to_date: {
-                type: 'string'
-            }
-        }
+        type: 'object'
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -70,12 +62,13 @@ exports.reportCustomers = function(req,res,next) {
 
                 for (var key in response) {
                     var order = response[key];
-                    if(order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
 
-                        if(customers.indexOf(order.customer.uid) === -1)
-                            customers.push(order.customer.uid);
-                    }
-                        
+                            if (customers.indexOf(order.customer.uid) === -1)
+                                customers.push(order.customer.uid);
+                        }
+
                 }
 
                 status = 1;
@@ -87,26 +80,18 @@ exports.reportCustomers = function(req,res,next) {
 }
 
 
-exports.reportNumOrdersFromStores = function(req,res,next) {
+exports.reportNumOrdersFromStores = function (req, res, next) {
     logger.info('post("/reportNumOrdersFromStores") --> RECEIVED'.event);
     var status, message, data;
 
     var orders = [];
 
     var schema = {
-        type: 'object',
-        properties: {
-            from_date: {
-                type: 'string'
-            },
-            to_date: {
-                type: 'string'
-            }
-        }
+        type: 'object'
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -128,12 +113,12 @@ exports.reportNumOrdersFromStores = function(req,res,next) {
 
                 for (var key in response) {
                     var order = response[key];
-                    if(order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
+                            if (order.request_type === 'store')
+                                orders.push(order);
+                        }
 
-                        if(order.order_type === 'store')
-                            orders.push(order);
-                    }
-                        
                 }
 
                 status = 1;
@@ -145,26 +130,18 @@ exports.reportNumOrdersFromStores = function(req,res,next) {
 }
 
 
-exports.reportNumOrdersFromHomeStores = function(req,res,next) {
+exports.reportNumOrdersFromHomeStores = function (req, res, next) {
     logger.info('post("/reportNumOrdersFromHomeStore") --> RECEIVED'.event);
     var status, message, data;
 
     var orders = [];
 
     var schema = {
-        type: 'object',
-        properties: {
-            from_date: {
-                type: 'string'
-            },
-            to_date: {
-                type: 'string'
-            }
-        }
+        type: 'object'
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -183,15 +160,15 @@ exports.reportNumOrdersFromHomeStores = function(req,res,next) {
                 message = 'No reports in database';
                 makeResponse(res, status, message, data);
             } else {
-                
+
 
                 for (var key in response) {
                     var order = response[key];
-                    if(order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
-
-                        if(order.order_type === 'homeStore')
-                            orders.push(order);
-                    }      
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
+                            if (order.request_type === 'homeStore')
+                                orders.push(order);
+                        }
                 }
 
                 status = 1;
@@ -202,26 +179,18 @@ exports.reportNumOrdersFromHomeStores = function(req,res,next) {
     }
 }
 
-exports.reportTotalCostFromStores = function(req,res,next) {
+exports.reportTotalCostFromStores = function (req, res, next) {
     logger.info('post("/reportTotalCostFromStores") --> RECEIVED'.event);
     var status, message, data;
 
     var cost = 0;
 
     var schema = {
-        type: 'object',
-        properties: {
-            from_date: {
-                type: 'string'
-            },
-            to_date: {
-                type: 'string'
-            }
-        }
+        type: 'object'
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -243,13 +212,14 @@ exports.reportTotalCostFromStores = function(req,res,next) {
 
                 for (var key in response) {
                     var order = response[key];
-                    if(order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
 
-                        if(order.order_type === 'store')
-                            cost += parseFloat(order.order_price);
-                    } 
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
+                            if (order.request_type === 'store')
+                                cost += parseFloat(order.order_price);
+                        }
                 }
-
+                logger.info('totalcost :%f', cost);
                 status = 1;
                 data = cost;
                 makeResponse(res, status, message, data);
@@ -259,26 +229,18 @@ exports.reportTotalCostFromStores = function(req,res,next) {
 }
 
 
-exports.reportTotalCostFromHomeStores = function(req,res,next) {
+exports.reportTotalCostFromHomeStores = function (req, res, next) {
     logger.info('post("/reportTotalCostFromHomeStores") --> RECEIVED'.event);
     var status, message, data;
 
     var cost = 0;
 
     var schema = {
-        type: 'object',
-        properties: {
-            from_date: {
-                type: 'string'
-            },
-            to_date: {
-                type: 'string'
-            }
-        }
+        type: 'object'
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -300,11 +262,11 @@ exports.reportTotalCostFromHomeStores = function(req,res,next) {
 
                 for (var key in response) {
                     var order = response[key];
-                    if(order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
-
-                        if(order.order_type === 'homeStore')
-                            cost += parseFloat(order.order_price);
-                    }
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
+                            if (order.request_type === 'homeStore')
+                                cost += parseFloat(order.order_price);
+                        }
                 }
 
                 status = 1;
@@ -315,26 +277,18 @@ exports.reportTotalCostFromHomeStores = function(req,res,next) {
     }
 }
 
-exports.reportTotalCostFromDelivery = function(req,res,next) {
+exports.reportTotalCostFromDelivery = function (req, res, next) {
     logger.info('post("/reportTotalCostFromDelivery") --> RECEIVED'.event);
     var status, message, data;
 
     var cost = 0;
 
     var schema = {
-        type: 'object',
-        properties: {
-            from_date: {
-                type: 'string'
-            },
-            to_date: {
-                type: 'string'
-            }
-        }
+        type: 'object'
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -356,9 +310,11 @@ exports.reportTotalCostFromDelivery = function(req,res,next) {
 
                 for (var key in response) {
                     var order = response[key];
-                    if(order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
-                        cost += parseFloat(order.delivery_price);
-                    }
+
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.order_accept_time >= params.from_date && order.order_accept_time <= params.to_date) {
+                            cost += parseFloat(order.delivery_price);
+                        }
                 }
 
                 status = 1;
@@ -370,18 +326,18 @@ exports.reportTotalCostFromDelivery = function(req,res,next) {
 }
 
 
-exports.reportNumPickedOrdersFromStores = function(req,res,next) {
+exports.reportNumPickedOrdersFromStores = function (req, res, next) {
     logger.info('post("/reportNumPickedOrdersFromStores") --> RECEIVED'.event);
     var status, message, data;
 
     var orders = [];
 
     var schema = {
-        type: 'object',
+        type: 'object'
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -404,8 +360,9 @@ exports.reportNumPickedOrdersFromStores = function(req,res,next) {
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.order_type === 'store')
-                        orders.push(order);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.request_type === 'store')
+                            orders.push(order);
                 }
 
                 status = 1;
@@ -417,7 +374,7 @@ exports.reportNumPickedOrdersFromStores = function(req,res,next) {
 }
 
 
-exports.reportNumPickedOrdersFromHomeStores = function(req,res,next) {
+exports.reportNumPickedOrdersFromHomeStores = function (req, res, next) {
     logger.info('post("/reportNumPickedOrdersFromHomeStores") --> RECEIVED'.event);
     var status, message, data;
 
@@ -428,7 +385,7 @@ exports.reportNumPickedOrdersFromHomeStores = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -451,8 +408,9 @@ exports.reportNumPickedOrdersFromHomeStores = function(req,res,next) {
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.order_type === 'homeStore')
-                        orders.push(order);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.request_type === 'homeStore')
+                            orders.push(order);
                 }
 
                 status = 1;
@@ -464,7 +422,7 @@ exports.reportNumPickedOrdersFromHomeStores = function(req,res,next) {
 }
 
 
-exports.reportNumAgentOrdersFromStores = function(req,res,next) {
+exports.reportNumAgentOrdersFromStores = function (req, res, next) {
     logger.info('post("/reportNumAgentOrdersFromStores") --> RECEIVED'.event);
     var status, message, data;
 
@@ -480,7 +438,7 @@ exports.reportNumAgentOrdersFromStores = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -499,13 +457,14 @@ exports.reportNumAgentOrdersFromStores = function(req,res,next) {
                 message = 'No reports in database';
                 makeResponse(res, status, message, data);
             } else {
-               
+
 
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.agent_id === params.agent_id && order.order_type === 'store')
-                        orders.push(order);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.agent_id === params.agent_id && order.request_type === 'store')
+                            orders.push(order);
                 }
 
                 status = 1;
@@ -517,7 +476,7 @@ exports.reportNumAgentOrdersFromStores = function(req,res,next) {
 }
 
 
-exports.reportNumAgentOrdersFromHomeStores = function(req,res,next) {
+exports.reportNumAgentOrdersFromHomeStores = function (req, res, next) {
     logger.info('post("/reportNumAgentOrdersFromHomeStores") --> RECEIVED'.event);
     var status, message, data;
 
@@ -533,7 +492,7 @@ exports.reportNumAgentOrdersFromHomeStores = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -557,8 +516,9 @@ exports.reportNumAgentOrdersFromHomeStores = function(req,res,next) {
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.agent_id === params.agent_id && order.order_type === 'homeStore')
-                        orders.push(order);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.agent_id === params.agent_id && order.request_type === 'homeStore')
+                            orders.push(order);
                 }
 
                 status = 1;
@@ -569,7 +529,7 @@ exports.reportNumAgentOrdersFromHomeStores = function(req,res,next) {
     }
 }
 
-exports.reportAgentTotalCostDelivery = function(req,res,next) {
+exports.reportAgentTotalCostDelivery = function (req, res, next) {
     logger.info('post("/reportAgentTotalCostDelivery") --> RECEIVED'.event);
     var status, message, data;
 
@@ -585,7 +545,7 @@ exports.reportAgentTotalCostDelivery = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -608,8 +568,9 @@ exports.reportAgentTotalCostDelivery = function(req,res,next) {
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.agent_id === params.agent_id)
-                        cost += parseFloat(order.delivery_price);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.agent_id === params.agent_id)
+                            cost += parseFloat(order.delivery_price);
                 }
 
                 status = 1;
@@ -620,7 +581,7 @@ exports.reportAgentTotalCostDelivery = function(req,res,next) {
     }
 }
 
-exports.reportNumOrdersFromStore = function(req,res,next) {
+exports.reportNumOrdersFromStore = function (req, res, next) {
     logger.info('post("/reportNumOrdersFromStore") --> RECEIVED'.event);
     var status, message, data;
 
@@ -636,7 +597,7 @@ exports.reportNumOrdersFromStore = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -660,8 +621,9 @@ exports.reportNumOrdersFromStore = function(req,res,next) {
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.store && order.store.id === params.store_id && order.order_type === 'store')
-                        orders.push(order);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.store && order.store.id === params.store_id && order.request_type === 'store')
+                            orders.push(order);
                 }
 
                 status = 1;
@@ -673,7 +635,7 @@ exports.reportNumOrdersFromStore = function(req,res,next) {
 }
 
 
-exports.reportNumOrdersFromHomeStore = function(req,res,next) {
+exports.reportNumOrdersFromHomeStore = function (req, res, next) {
     logger.info('post("/reportNumOrdersFromHomeStore") --> RECEIVED'.event);
     var status, message, data;
 
@@ -689,7 +651,7 @@ exports.reportNumOrdersFromHomeStore = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -713,8 +675,9 @@ exports.reportNumOrdersFromHomeStore = function(req,res,next) {
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.store && order.store.id === params.store_id && order.order_type === 'homeStore')
-                        orders.push(order);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.store && order.store.id === params.store_id && order.request_type === 'homeStore')
+                            orders.push(order);
                 }
 
                 status = 1;
@@ -726,7 +689,7 @@ exports.reportNumOrdersFromHomeStore = function(req,res,next) {
 }
 
 
-exports.reportTotalCostOrdersFromStore = function(req,res,next) {
+exports.reportTotalCostOrdersFromStore = function (req, res, next) {
     logger.info('post("/reportTotalCostOrdersFromStore") --> RECEIVED'.event);
     var status, message, data;
 
@@ -742,7 +705,7 @@ exports.reportTotalCostOrdersFromStore = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -766,8 +729,9 @@ exports.reportTotalCostOrdersFromStore = function(req,res,next) {
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.store && order.store.id === params.store_id && order.order_type === 'store')
-                      cost += parseFloat(order.order_price);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.store && order.store.id === params.store_id && order.request_type === 'store')
+                            cost += parseFloat(order.order_price);
                 }
 
                 status = 1;
@@ -779,7 +743,7 @@ exports.reportTotalCostOrdersFromStore = function(req,res,next) {
 }
 
 
-exports.reportTotalCostOrdersFromHomeStore = function(req,res,next) {
+exports.reportTotalCostOrdersFromHomeStore = function (req, res, next) {
     logger.info('post("/reportTotalCostOrdersFromHomeStore") --> RECEIVED'.event);
     var status, message, data;
 
@@ -795,7 +759,7 @@ exports.reportTotalCostOrdersFromHomeStore = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -814,11 +778,12 @@ exports.reportTotalCostOrdersFromHomeStore = function(req,res,next) {
                 message = 'No reports in database';
                 makeResponse(res, status, message, data);
             } else {
-                  for (var key in response) {
+                for (var key in response) {
                     var order = response[key];
 
-                    if(order.store && order.store.id === params.store_id && order.order_type === 'homeStore')
-                      cost += parseFloat(order.order_price);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.store && order.store.id === params.store_id && order.request_type === 'homeStore')
+                            cost += parseFloat(order.order_price);
                 }
 
                 status = 1;
@@ -830,7 +795,7 @@ exports.reportTotalCostOrdersFromHomeStore = function(req,res,next) {
 }
 
 
-exports.reportTotalCostDeliveryFromStore = function(req,res,next) {
+exports.reportTotalCostDeliveryFromStore = function (req, res, next) {
     logger.info('post("/reportTotalCostDeliveryFromStore") --> RECEIVED'.event);
     var status, message, data;
 
@@ -846,7 +811,7 @@ exports.reportTotalCostDeliveryFromStore = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -868,8 +833,10 @@ exports.reportTotalCostDeliveryFromStore = function(req,res,next) {
 
                 for (var key in response) {
                     var order = response[key];
-                    if(order.store && order.store.id === params.store_id && order.order_type === 'store')
-                      cost += parseFloat(order.delivery_price);
+
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.store && order.store.id === params.store_id && order.request_type === 'store')
+                            cost += parseFloat(order.delivery_price);
                 }
 
                 status = 1;
@@ -881,7 +848,7 @@ exports.reportTotalCostDeliveryFromStore = function(req,res,next) {
 }
 
 
-exports.reportTotalCostDeliveryFromHomeStore = function(req,res,next) {
+exports.reportTotalCostDeliveryFromHomeStore = function (req, res, next) {
     logger.info('post("/reportTotalCostDeliveryFromHomeStore") --> RECEIVED'.event);
     var status, message, data;
 
@@ -897,7 +864,7 @@ exports.reportTotalCostDeliveryFromHomeStore = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -920,8 +887,9 @@ exports.reportTotalCostDeliveryFromHomeStore = function(req,res,next) {
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.store && order.store.id === params.store_id && order.order_type === 'homeStore')
-                      cost += parseFloat(order.delivery_price);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.store && order.store.id === params.store_id && order.request_type === 'homeStore')
+                            cost += parseFloat(order.delivery_price);
                 }
 
                 status = 1;
@@ -934,7 +902,7 @@ exports.reportTotalCostDeliveryFromHomeStore = function(req,res,next) {
 
 
 
-exports.getAgentOrdersByTime = function(req,res,next) {
+exports.getAgentOrdersByTime = function (req, res, next) {
     logger.info('post("/getAgentOrdersByTime") --> RECEIVED'.event);
     var status, message, data;
 
@@ -950,7 +918,7 @@ exports.getAgentOrdersByTime = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -976,8 +944,9 @@ exports.getAgentOrdersByTime = function(req,res,next) {
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.agent_id === params.agent_id)
-                      orders.push(order);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.agent_id === params.agent_id)
+                            orders.push(order);
                 }
 
                 status = 1;
@@ -989,7 +958,7 @@ exports.getAgentOrdersByTime = function(req,res,next) {
 }
 
 
-exports.reportOrdersFromStoreByTime = function(req,res,next) {
+exports.reportOrdersFromStoreByTime = function (req, res, next) {
     logger.info('post("/reportOrdersFromStoreByTime") --> RECEIVED'.event);
     var status, message, data;
 
@@ -1005,7 +974,7 @@ exports.reportOrdersFromStoreByTime = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -1028,8 +997,9 @@ exports.reportOrdersFromStoreByTime = function(req,res,next) {
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.store && order.store.id === params.store_id && order.order_type === 'store')
-                      orders.push(order);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.store && order.store.id === params.store_id && order.request_type === 'store')
+                            orders.push(order);
                 }
 
                 status = 1;
@@ -1040,7 +1010,7 @@ exports.reportOrdersFromStoreByTime = function(req,res,next) {
     }
 }
 
-exports.reportOrdersFromHomeStoreByTime = function(req,res,next) {
+exports.reportOrdersFromHomeStoreByTime = function (req, res, next) {
     logger.info('post("/reportOrdersFromHomeStoreByTime") --> RECEIVED'.event);
     var status, message, data;
 
@@ -1056,7 +1026,7 @@ exports.reportOrdersFromHomeStoreByTime = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -1078,8 +1048,9 @@ exports.reportOrdersFromHomeStoreByTime = function(req,res,next) {
                 for (var key in response) {
                     var order = response[key];
 
-                    if(order.store && order.store.id === params.store_id && order.order_type === 'homeStore')
-                      orders.push(order);
+                    if (order.status != 'pending' && order.status != 'rejected')
+                        if (order.store && order.store.id === params.store_id && order.request_type === 'homeStore')
+                            orders.push(order);
                 }
 
                 status = 1;
@@ -1091,7 +1062,7 @@ exports.reportOrdersFromHomeStoreByTime = function(req,res,next) {
 }
 
 
-exports.reportAgentHours = function(req,res,next) {
+exports.reportAgentHours = function (req, res, next) {
     logger.info('post("/reportAgentHours") --> RECEIVED'.event);
     var status, message, data;
 
@@ -1107,7 +1078,7 @@ exports.reportAgentHours = function(req,res,next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -1135,9 +1106,9 @@ exports.reportAgentHours = function(req,res,next) {
 
                 status = 1;
 
-                if(history!=null)
+                if (history != null)
                     data = history.hours;
-                else 
+                else
                     data = 0;
                 makeResponse(res, status, message, data);
             }

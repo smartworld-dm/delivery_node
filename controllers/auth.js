@@ -25,6 +25,11 @@ var logger = require('tracer').colorConsole({
         data.title = data.title.toUpperCase();
     }
 });
+
+var nodemailer = require('nodemailer');
+
+var transporter = nodemailer.createTransport(Config.emailConfig);
+
 var inspector = require('schema-inspector');
 
 exports.registerUser = function (req, res, next) {
@@ -54,7 +59,7 @@ exports.registerUser = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -113,6 +118,56 @@ exports.registerUser = function (req, res, next) {
     }
 };
 
+
+exports.updateNotifications = function (req, res, next) {
+    logger.info('EXPRESS: post("/updateNotifications") --> RECEIVED'.event);
+
+    var status, message, data;
+
+    var schema = {
+        type: 'object',
+        properties: {
+            uid: {
+                type: 'string'
+            }
+        }
+    };
+
+    var params = req.body;
+    
+
+    var validationresult = inspector.validate(schema, params);
+
+    if (!validationresult.valid) {
+        status = 0;
+        message = validationresult.format();
+        logger.log(validationresult.format());
+
+        makeResponse(res, status, message, data);
+    } else {
+        logger.info('Validation passed');
+
+        FBase.ref('users/' + params.uid).once('value', function (snapshot) {
+            var user = snapshot.val();
+
+            user.notifications = params.notifications;
+            FBase.ref('users/' + params.uid).set(user, function (err) {
+                if (err) {
+                    status = 0;
+                    message = err;
+                    makeResponse(res, status, message, data);
+                }
+                else {
+                    status = 1;
+                    data = user;
+                    makeResponse(res, status, message, data);
+                }
+            });
+        });
+    }
+};
+
+
 exports.authenticateUser = function (req, res, next) {
     logger.info('EXPRESS: post("/authenticateUser") --> RECEIVED'.event);
 
@@ -131,7 +186,7 @@ exports.authenticateUser = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -144,8 +199,8 @@ exports.authenticateUser = function (req, res, next) {
     } else {
         logger.info('Validation passed');
 
-    
-        FBase.ref('users').once('value', function(snapshot) {
+
+        FBase.ref('users').once('value', function (snapshot) {
             var users = snapshot.val();
             if (!users) {
                 status = 0;
@@ -189,7 +244,7 @@ exports.getUserData = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -200,9 +255,8 @@ exports.getUserData = function (req, res, next) {
     } else {
         logger.info('Validation passed');
 
-        FBase.ref('users/' + params.uid).once('value', function(snapshot) {
+        FBase.ref('users/' + params.uid).once('value', function (snapshot) {
             var user = snapshot.val();
-
             if (!user) {
                 status = 0;
                 message = 'No such user in database';
@@ -231,7 +285,7 @@ exports.resetPassword = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -243,10 +297,10 @@ exports.resetPassword = function (req, res, next) {
         makeResponse(res, status, message, data);
     } else {
         logger.info('Validation passed');
-        
-        FBase.ref('users').orderByChild('email').equalTo(`${params.email}`).once('value', function(snapshot) {
 
-        // FBase.ref('users').once('value', function(snapshot) {
+        FBase.ref('users').orderByChild('email').equalTo(`${params.email}`).once('value', function (snapshot) {
+
+            // FBase.ref('users').once('value', function(snapshot) {
             var users = snapshot.val();
 
             if (!users) {
@@ -257,11 +311,36 @@ exports.resetPassword = function (req, res, next) {
                 var user;
 
                 for (var u in users) {
-                        user = users[u];
-                        break;
+                    user = users[u];
+                    break;
                 }
 
                 var email = user.email;
+
+                var password = params.password;
+
+                user.password = password;
+
+                status = 1;
+                message = 'Sent new password to your email address';
+                makeResponse(res, status, message, data);
+
+                var mailOptions = {
+					from: 'noreply@test.com',
+					to: email,
+					subject: 'Reset Password',
+					text: 'New Password is deliveryplan. Please retry to login with new password'
+				};
+
+
+				transporter.sendMail(mailOptions, function (error, info) {
+					if (error) {
+						console.log(error);
+					} else {
+						console.log('Email sent: ' + info.response);
+					}
+				});
+
 
                 // create new password
 
@@ -293,7 +372,7 @@ exports.saveUserProfile = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -348,7 +427,7 @@ exports.changeUserPassword = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -361,7 +440,7 @@ exports.changeUserPassword = function (req, res, next) {
     } else {
         logger.info('Validation passed');
 
-        FBase.ref('users/' + params.uid + '/password').set(params.password, function(error) {
+        FBase.ref('users/' + params.uid + '/password').set(params.password, function (error) {
             if (error) {
                 status = 0;
                 message = error;

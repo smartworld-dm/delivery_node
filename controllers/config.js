@@ -1,8 +1,26 @@
 var Config = {
     httpPort: 11000,
     cyclesToRepeatForSelectingAvailableAgent: 1000,
-    WebAPIKey: 'AAAAQqGjQBY:APA91bHhzQ4A_fl7Whd-ddjUkq42E59suuQD8rdDnzRSUPf5-hazECel2_Bsx5tPEToNU2VRqpnzO3Ortc9fTR9rgU8ySJ_cDmMQjwgrMJvlUd8z9BqGjuFHNCNVrBvhIQ_oo9uEVVPz'
-};
+    WebAPIKey: 'AAAAQqGjQBY:APA91bHhzQ4A_fl7Whd-ddjUkq42E59suuQD8rdDnzRSUPf5-hazECel2_Bsx5tPEToNU2VRqpnzO3Ortc9fTR9rgU8ySJ_cDmMQjwgrMJvlUd8z9BqGjuFHNCNVrBvhIQ_oo9uEVVPz',
+
+    // emailConfig: {
+    //     service: 'outlook.sa',
+    //     auth: {
+    //         user: 'managementdp@outlook.sa',
+    //         pass: 'dp777444'
+    //     }
+    // }
+
+     emailConfig: {
+         host:  "smtp-mail.gmail.com", port: 587, secureConnection: false,	
+	auth: {
+             user: 'App.DeliveryPlan@gmail.com',
+             pass: 'Rst1414Rst'
+         }
+     }
+
+
+    };
 
 Config.dict = {
     DELIVERY_REQUEST_NO_AGENT_AVAILABLE_TITLE: 'حول طلبك',

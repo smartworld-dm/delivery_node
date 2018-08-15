@@ -46,7 +46,7 @@ exports.addPrice = function (req, res, next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 
@@ -112,7 +112,7 @@ exports.deletePrice = function (req, res, next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 

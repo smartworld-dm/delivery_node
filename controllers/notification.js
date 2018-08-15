@@ -9,7 +9,7 @@ var FBase = firebase.database();
 
 function notifyCustomerThereIsNoAvailableAgent(dRequest) {
     sendPushNotification(
-        dRequest.customerUID,
+        dRequest.uid,
         'noAgentAvailable',
         Config.dict.DELIVERY_REQUEST_NO_AGENT_AVAILABLE_TITLE,
         Config.dict.DELIVERY_REQUEST_NO_AGENT_AVAILABLE_MESSAGE

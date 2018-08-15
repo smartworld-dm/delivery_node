@@ -4,35 +4,38 @@ var FBase = firebase.database();
 //debugging
 var colors = require('colors');
 colors.setTheme({
-    info: 'green',
-    data: 'magenta',
-    warn: 'yellow',
-    error: 'red',
-    event: 'cyan',
-    receivedEvent: 'lightcyan'
+	info: 'green',
+	data: 'magenta',
+	warn: 'yellow',
+	error: 'red',
+	event: 'cyan',
+	receivedEvent: 'lightcyan'
 });
 
 
 //trace
 var logger = require('tracer').colorConsole({
-    format: [
-        '{{timestamp}} (in line: {{line}}) >> {{message}}', //default format
-        {
-            error: '{{timestamp}} <{{title}}> {{message}} (in {{file}}:{{line}})\nCall Stack:\n{{stack}}' // error format
-        }
-    ],
-    dateformat: 'HH:MM:ss.L',
-    preprocess: function (data) {
-        data.title = data.title.toUpperCase();
-    }
+	format: [
+		'{{timestamp}} (in line: {{line}}) >> {{message}}', //default format
+		{
+			error: '{{timestamp}} <{{title}}> {{message}} (in {{file}}:{{line}})\nCall Stack:\n{{stack}}' // error format
+		}
+	],
+	dateformat: 'HH:MM:ss.L',
+	preprocess: function (data) {
+		data.title = data.title.toUpperCase();
+	}
 });
 var inspector = require('schema-inspector');
 
 var Config = require('./config').Config;
 var Notification = require('./notification');
 var socketController = require('./socket');
+var nodemailer = require('nodemailer');
 
-exports.acceptHomeStoreRequest = function(req,res,next) {
+var transporter = nodemailer.createTransport(Config.emailConfig);
+
+exports.acceptHomeStoreRequest = function (req, res, next) {
 	logger.info('EXPRESS: post("/acceptHomeStoreRequest") --> RECEIVED'.event);
 	var status, message, data;
 
@@ -46,7 +49,7 @@ exports.acceptHomeStoreRequest = function(req,res,next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 
@@ -67,30 +70,50 @@ exports.acceptHomeStoreRequest = function(req,res,next) {
 				logger.info(requests);
 				makeResponse(res, status, message, data);
 			} else {
-                logger.info(requests);
+				logger.info(requests);
 
-                var homeStore,request;
-                for(var key in requests){
+				var homeStore, request;
+				for (var key in requests) {
 					request = requests[key];
 					homeStore = requests[key];
-                }
+				}
 
 				logger.info(requests);
-				
-				request.status = 'accepted';
 
-							
+				request.status = 'accepted';
+				request.reason = params.reason;
+
+
+				FBase.ref('users/' + data.uid).once('value', function (snapshot) {
+					var user = snapshot.val();
+
+					if (user) {
+						var sockets = socketController.getOnlineSockets();
+						
+						for (var i = 0; i < sockets.length; i++) {
+							var socket = sockets[i];
+							if (socket.id === user.socketID) {
+								socket.emit('messageFromAdmin', {
+									message: request.reason
+								});
+							}
+						}
+
+					}
+				});
+
+
 				var sRef = FBase.ref('stores').push();
 				homeStore.id = sRef.key;
-	
+
 				homeStore.status = 'accepted';
 				homeStore.type = 'homeStore';
-	
+
 				var d = new Date();
 				homeStore.timestamp = d.getTime();
 				homeStore.date = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
-	
-				FBase.ref('requestHomeStores/' + params.request_id ).set(request);
+
+				FBase.ref('requestHomeStores/' + params.request_id).set(request);
 
 				socketController.makeNotification(homeStore.owner.uid, params.reason);
 
@@ -102,9 +125,9 @@ exports.acceptHomeStoreRequest = function(req,res,next) {
 						status = 1;
 						data = homeStore;
 
-						
 
-						if(homeStore.owner) {
+
+						if (homeStore.owner) {
 							FBase.ref('users/' + homeStore.owner.uid + '/type').set('owner');
 
 							// eventually let the new home owner know his request was approved
@@ -124,10 +147,10 @@ exports.acceptHomeStoreRequest = function(req,res,next) {
 				});
 			}
 		});
-	}	
+	}
 };
 
-exports.acceptStoreRequest = function(req,res,next) {
+exports.acceptStoreRequest = function (req, res, next) {
 	logger.info('EXPRESS: post("/acceptStoreRequest") --> RECEIVED'.event);
 	var status, message, data;
 
@@ -141,7 +164,7 @@ exports.acceptStoreRequest = function(req,res,next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 
@@ -162,27 +185,46 @@ exports.acceptStoreRequest = function(req,res,next) {
 				logger.info(requests);
 				makeResponse(res, status, message, data);
 			} else {
-                logger.info(requests);
+				logger.info(requests);
 
-                var store, request;
-                for(var key in requests){
+				var store, request;
+				for (var key in requests) {
 					store = requests[key];
 					request = requests[key];
 				}
-				
-				request.status = 'accepted';
 
-							
+				request.status = 'accepted';
+				request.reason = params.reason;
+
+				FBase.ref('users/' + data.uid).once('value', function (snapshot) {
+					var user = snapshot.val();
+
+					if (user) {
+						var sockets = socketController.getOnlineSockets();
+						
+						for (var i = 0; i < sockets.length; i++) {
+							var socket = sockets[i];
+							if (socket.id === user.socketID) {
+								socket.emit('messageFromAdmin', {
+									message: request.reason
+								});
+							}
+						}
+
+					}
+				});
+
+
 				var sRef = FBase.ref('stores').push();
 				store.id = sRef.key;
-	
+
 				store.status = 'accepted';
 				store.type = 'store';
-	
+
 				var d = new Date();
 				store.timestamp = d.getTime();
 
-				FBase.ref('requestStores/' + params.request_id ).set(request);
+				FBase.ref('requestStores/' + params.request_id).set(request);
 				socketController.makeNotification(store.owner.uid, params.reason);
 
 				sRef.set(store, function (err) {
@@ -193,9 +235,9 @@ exports.acceptStoreRequest = function(req,res,next) {
 						status = 1;
 						data = store;
 
-					
 
-						if(store.owner) {
+
+						if (store.owner) {
 
 							// eventually let the new home owner know his request was approved
 							// ...
@@ -206,17 +248,17 @@ exports.acceptStoreRequest = function(req,res,next) {
 								Config.dict.USER_IS_STORE_OWNER_MESSAGE
 							);
 
-							
+
 						}
 						makeResponse(res, status, message, data);
 					}
 				});
 			}
 		});
-	}	
+	}
 };
 
-exports.rejectHomeStoreRequest = function(req,res,next) {
+exports.rejectHomeStoreRequest = function (req, res, next) {
 	logger.info('EXPRESS: post("/rejectHomeStoreRequest") --> RECEIVED'.event);
 	var status, message, data;
 
@@ -233,7 +275,7 @@ exports.rejectHomeStoreRequest = function(req,res,next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 
@@ -254,19 +296,36 @@ exports.rejectHomeStoreRequest = function(req,res,next) {
 				logger.info(request);
 				makeResponse(res, status, message, data);
 			} else {
-                logger.info(request);
+				logger.info(request);
 
-                
-                for(var key in request){
-                    data = request[key];
-                }
 
-                logger.info(data);
+				for (var key in request) {
+					data = request[key];
+				}
+
+				logger.info(data);
 				data.status = 'rejected';
 				data.reason = params.reason;
 
-                FBase.ref('requestHomeStores/' + params.request_id ).set(data);
-				
+				FBase.ref('requestHomeStores/' + params.request_id).set(data);
+
+				FBase.ref('users/' + data.uid).once('value', function (snapshot) {
+					var user = snapshot.val();
+
+					if (user) {
+						var sockets = socketController.getOnlineSockets();
+						
+						for (var i = 0; i < sockets.length; i++) {
+							var socket = sockets[i];
+							if (socket.id === user.socketID) {
+								socket.emit('messageFromAdmin', {
+									message: data.reason
+								});
+							}
+						}
+					}
+				});
+
 
 				socketController.makeNotification(data.owner.uid, Config.dict.HOME_STORE_REGISTRATION_REQUEST_REJECTED + params.reason).then(
 					function (s) {
@@ -282,10 +341,10 @@ exports.rejectHomeStoreRequest = function(req,res,next) {
 
 			}
 		});
-	}	
+	}
 };
 
-exports.rejectStoreRequest = function(req,res,next) {
+exports.rejectStoreRequest = function (req, res, next) {
 	logger.info('EXPRESS: post("/rejectStoreRequest") --> RECEIVED'.event);
 	var status, message, data;
 
@@ -302,7 +361,7 @@ exports.rejectStoreRequest = function(req,res,next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 
@@ -323,18 +382,36 @@ exports.rejectStoreRequest = function(req,res,next) {
 				logger.info(request);
 				makeResponse(res, status, message, data);
 			} else {
-                logger.info(request);
+				logger.info(request);
 
-                
-                for(var key in request){
-                    data = request[key];
-                }
 
-                logger.info(data);
+				for (var key in request) {
+					data = request[key];
+				}
+
+				logger.info(data);
 				data.status = 'rejected';
 				data.reason = params.reason;
-                FBase.ref('requestStores/' + params.request_id ).set(data);
-				
+				FBase.ref('requestStores/' + params.request_id).set(data);
+
+
+				FBase.ref('users/' + data.uid).once('value', function (snapshot) {
+					var user = snapshot.val();
+
+					if (user) {
+						var sockets = socketController.getOnlineSockets();
+						
+						for (var i = 0; i < sockets.length; i++) {
+							var socket = sockets[i];
+							if (socket.id === user.socketID) {
+								socket.emit('messageFromAdmin', {
+									message: data.reason
+								});
+							}
+						}
+
+					}
+				});
 
 				socketController.makeNotification(data.owner.uid, params.reason).then(
 					function (s) {
@@ -350,16 +427,16 @@ exports.rejectStoreRequest = function(req,res,next) {
 
 			}
 		});
-	}	
+	}
 };
 
 
-exports.getAllHomeStoreRequests = function(req,res,next) {
+exports.getAllHomeStoreRequests = function (req, res, next) {
 	logger.info('post("/getAllHomeStoreRequests") --> RECEIVED'.event);
 	var status, message, data;
 	var requests = [];
 
-	FBase.ref('requestHomeStores').once('value', function(snapshot) {
+	FBase.ref('requestHomeStores').once('value', function (snapshot) {
 		var response = snapshot.val();
 		if (!response) {
 			status = 0;
@@ -367,8 +444,8 @@ exports.getAllHomeStoreRequests = function(req,res,next) {
 			makeResponse(res, status, message, data);
 		} else {
 			logger.info(response);
-			for (var key in response) 
-                requests.push(response[key]);
+			for (var key in response)
+				requests.push(response[key]);
 			status = 1;
 			data = requests;
 			makeResponse(res, status, message, data);
@@ -376,12 +453,12 @@ exports.getAllHomeStoreRequests = function(req,res,next) {
 	});
 }
 
-exports.getHomeStoreRequestsPending = function(req,res,next) {
+exports.getHomeStoreRequestsPending = function (req, res, next) {
 	logger.info('post("/getHomeStoreRequestsPending") --> RECEIVED'.event);
 	var status, message, data;
-    var requests = [];
-    
-    FBase.ref('requestHomeStores').orderByChild('status').equalTo(`pending`).once('value', function (snapshot) {
+	var requests = [];
+
+	FBase.ref('requestHomeStores').orderByChild('status').equalTo(`pending`).once('value', function (snapshot) {
 		var response = snapshot.val();
 		if (!response) {
 			status = 0;
@@ -389,8 +466,8 @@ exports.getHomeStoreRequestsPending = function(req,res,next) {
 			makeResponse(res, status, message, data);
 		} else {
 			logger.info(response);
-			for (var key in response) 
-            requests.push(response[key]);
+			for (var key in response)
+				requests.push(response[key]);
 			status = 1;
 			data = requests;
 			makeResponse(res, status, message, data);
@@ -398,12 +475,12 @@ exports.getHomeStoreRequestsPending = function(req,res,next) {
 	});
 }
 
-exports.getHomeStoreRequestsAccepted = function(req,res,next) {
+exports.getHomeStoreRequestsAccepted = function (req, res, next) {
 	logger.info('post("/getHomeStoreRequestsAccepted") --> RECEIVED'.event);
 	var status, message, data;
-    var requests = [];
-    
-    FBase.ref('requestHomeStores').orderByChild('status').equalTo(`accepted`).once('value', function (snapshot) {
+	var requests = [];
+
+	FBase.ref('requestHomeStores').orderByChild('status').equalTo(`accepted`).once('value', function (snapshot) {
 		var response = snapshot.val();
 		if (!response) {
 			status = 0;
@@ -411,8 +488,8 @@ exports.getHomeStoreRequestsAccepted = function(req,res,next) {
 			makeResponse(res, status, message, data);
 		} else {
 			logger.info(response);
-			for (var key in response) 
-            requests.push(response[key]);
+			for (var key in response)
+				requests.push(response[key]);
 			status = 1;
 			data = requests;
 			makeResponse(res, status, message, data);
@@ -421,12 +498,12 @@ exports.getHomeStoreRequestsAccepted = function(req,res,next) {
 }
 
 
-exports.getHomeStoreRequestsRejected = function(req,res,next) {
+exports.getHomeStoreRequestsRejected = function (req, res, next) {
 	logger.info('post("/getHomeStoreRequestsRejected") --> RECEIVED'.event);
 	var status, message, data;
-    var requests = [];
-    
-    FBase.ref('requestHomeStores').orderByChild('status').equalTo(`rejected`).once('value', function (snapshot) {
+	var requests = [];
+
+	FBase.ref('requestHomeStores').orderByChild('status').equalTo(`rejected`).once('value', function (snapshot) {
 		var response = snapshot.val();
 		if (!response) {
 			status = 0;
@@ -434,8 +511,8 @@ exports.getHomeStoreRequestsRejected = function(req,res,next) {
 			makeResponse(res, status, message, data);
 		} else {
 			logger.info(response);
-			for (var key in response) 
-            requests.push(response[key]);
+			for (var key in response)
+				requests.push(response[key]);
 			status = 1;
 			data = requests;
 			makeResponse(res, status, message, data);
@@ -443,20 +520,20 @@ exports.getHomeStoreRequestsRejected = function(req,res,next) {
 	});
 }
 
-exports.getAllStoreRequests = function(req,res,next) {
+exports.getAllStoreRequests = function (req, res, next) {
 	logger.info('post("/getAllStoreRequests") --> RECEIVED'.event);
 	var status, message, data;
 	var requests = [];
 
-	FBase.ref('requestStores').once('value', function(snapshot) {
+	FBase.ref('requestStores').once('value', function (snapshot) {
 		var response = snapshot.val();
 		if (!response) {
 			status = 0;
 			message = 'No store requets in database';
 			makeResponse(res, status, message, data);
 		} else {
-			for (var key in response) 
-            requests.push(response[key]);
+			for (var key in response)
+				requests.push(response[key]);
 			status = 1;
 			data = requests;
 			makeResponse(res, status, message, data);
@@ -464,20 +541,20 @@ exports.getAllStoreRequests = function(req,res,next) {
 	});
 }
 
-exports.getStoreRequestsPending = function(req,res,next) {
+exports.getStoreRequestsPending = function (req, res, next) {
 	logger.info('post("/getStoreRequestsPending") --> RECEIVED'.event);
 	var status, message, data;
-    var requests = [];
-    
-    FBase.ref('requestStores').orderByChild('status').equalTo(`pending`).once('value', function (snapshot) {
+	var requests = [];
+
+	FBase.ref('requestStores').orderByChild('status').equalTo(`pending`).once('value', function (snapshot) {
 		var response = snapshot.val();
 		if (!response) {
 			status = 0;
 			message = 'No pending store requets in database';
 			makeResponse(res, status, message, data);
 		} else {
-			for (var key in response) 
-            requests.push(response[key]);
+			for (var key in response)
+				requests.push(response[key]);
 			status = 1;
 			data = requests;
 			makeResponse(res, status, message, data);
@@ -485,12 +562,12 @@ exports.getStoreRequestsPending = function(req,res,next) {
 	});
 }
 
-exports.getStoreRequestsAccepted = function(req,res,next) {
+exports.getStoreRequestsAccepted = function (req, res, next) {
 	logger.info('post("/getStoreRequestsAccepted") --> RECEIVED'.event);
 	var status, message, data;
-    var requests = [];
-    
-    FBase.ref('requestStores').orderByChild('status').equalTo(`accepted`).once('value', function (snapshot) {
+	var requests = [];
+
+	FBase.ref('requestStores').orderByChild('status').equalTo(`accepted`).once('value', function (snapshot) {
 		var response = snapshot.val();
 		if (!response) {
 			status = 0;
@@ -498,8 +575,8 @@ exports.getStoreRequestsAccepted = function(req,res,next) {
 			makeResponse(res, status, message, data);
 		} else {
 			logger.info(response);
-			for (var key in response) 
-            requests.push(response[key]);
+			for (var key in response)
+				requests.push(response[key]);
 			status = 1;
 			data = requests;
 			makeResponse(res, status, message, data);
@@ -508,12 +585,12 @@ exports.getStoreRequestsAccepted = function(req,res,next) {
 }
 
 
-exports.getStoreRequestsRejected = function(req,res,next) {
+exports.getStoreRequestsRejected = function (req, res, next) {
 	logger.info('post("/getStoreRequestsRejected") --> RECEIVED'.event);
 	var status, message, data;
-    var requests = [];
-    
-    FBase.ref('requestStores').orderByChild('status').equalTo(`rejected`).once('value', function (snapshot) {
+	var requests = [];
+
+	FBase.ref('requestStores').orderByChild('status').equalTo(`rejected`).once('value', function (snapshot) {
 		var response = snapshot.val();
 		if (!response) {
 			status = 0;
@@ -521,8 +598,8 @@ exports.getStoreRequestsRejected = function(req,res,next) {
 			makeResponse(res, status, message, data);
 		} else {
 			logger.info(response);
-			for (var key in response) 
-            requests.push(response[key]);
+			for (var key in response)
+				requests.push(response[key]);
 			status = 1;
 			data = requests;
 			makeResponse(res, status, message, data);
@@ -530,7 +607,7 @@ exports.getStoreRequestsRejected = function(req,res,next) {
 	});
 }
 
-exports.addHomeStoreRequest = function(req,res,next) {
+exports.addHomeStoreRequest = function (req, res, next) {
 	logger.info('EXPRESS: post("/addHomeStoreRequest") --> RECEIVED'.event);
 
 	var status, message, data;
@@ -551,7 +628,7 @@ exports.addHomeStoreRequest = function(req,res,next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 
@@ -566,7 +643,7 @@ exports.addHomeStoreRequest = function(req,res,next) {
 
 		var store = params;
 
-		if(store.owner) {
+		if (store.owner) {
 			var owner = store.owner;
 
 			store.owner = {
@@ -600,6 +677,39 @@ exports.addHomeStoreRequest = function(req,res,next) {
 				status = 0;
 				message = err;
 				makeResponse(res, status, message, data);
+
+				var mailOptions = {
+					from: 'noreply@test.com',
+					to: 'managementdp@outlook.sa',
+					subject: 'A New HomeStore Request',
+					text: 'A New HomeStore Request'
+				};
+
+
+				transporter.sendMail(mailOptions, function (error, info) {
+					if (error) {
+						console.log(error);
+					} else {
+						console.log('Email sent: ' + info.response);
+					}
+				});
+
+				mailOptions = {
+					from: 'noreply@test.com',
+					to: 'StoresDP@outlook.sa',
+					subject: 'A New HomeStore Request',
+					text: 'A New HomeStore Request'
+				};
+
+
+				transporter.sendMail(mailOptions, function (error, info) {
+					if (error) {
+						console.log(error);
+					} else {
+						console.log('Email sent: ' + info.response);
+					}
+				});
+
 			} else {
 				status = 1;
 				data = store;
@@ -609,7 +719,7 @@ exports.addHomeStoreRequest = function(req,res,next) {
 	}
 };
 
-exports.addStoreRequest = function(req,res,next) {
+exports.addStoreRequest = function (req, res, next) {
 	logger.info('EXPRESS: post("/addStoreRequest") --> RECEIVED'.event);
 
 	var status, message, data;
@@ -630,7 +740,7 @@ exports.addStoreRequest = function(req,res,next) {
 	};
 
 	var params = req.body;
-	logger.log('params: %O', params);
+	
 
 	var validationresult = inspector.validate(schema, params);
 
@@ -675,6 +785,39 @@ exports.addStoreRequest = function(req,res,next) {
 				status = 0;
 				message = err;
 				makeResponse(res, status, message, data);
+
+				var mailOptions = {
+					from: 'noreply@test.com',
+					to: 'managementdp@outlook.sa',
+					subject: 'A New HomeStore Request',
+					text: 'A New HomeStore Request'
+				};
+
+
+				transporter.sendMail(mailOptions, function (error, info) {
+					if (error) {
+						console.log(error);
+					} else {
+						console.log('Email sent: ' + info.response);
+					}
+				});
+
+				mailOptions = {
+					from: 'noreply@test.com',
+					to: 'StoresDP@outlook.sa',
+					subject: 'A New HomeStore Request',
+					text: 'A New HomeStore Request'
+				};
+
+
+				transporter.sendMail(mailOptions, function (error, info) {
+					if (error) {
+						console.log(error);
+					} else {
+						console.log('Email sent: ' + info.response);
+					}
+				});
+
 			} else {
 				status = 1;
 				data = store;
@@ -685,12 +828,12 @@ exports.addStoreRequest = function(req,res,next) {
 };
 
 function makeResponse(res, status, message, data) {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.status(200).json({
-        status: status,
-        message: message,
-        data: data
-    });
+	res.set('Access-Control-Allow-Origin', '*');
+	res.status(200).json({
+		status: status,
+		message: message,
+		data: data
+	});
 }
 
 

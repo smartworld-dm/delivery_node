@@ -46,9 +46,6 @@ exports.addPersonalOrder = function (req, res, next) {
         type: 'object',
 
         properties: {
-            uid: {
-                type: 'string'
-            },
             order_type: {
                 type: 'string'
             },
@@ -78,23 +75,17 @@ exports.addPersonalOrder = function (req, res, next) {
             },
             delivery_price: {
                 type: 'string'
-            },
-            extra_details: {
-                type: 'string'
             }
         }
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
 
     var validationresult = inspector.validate(schema, params);
 
     if (!validationresult.valid) {
         status = 0;
         message = validationresult.format();
-        logger.log(validationresult.format());
-
         makeResponse(res, status, message, data);
     } else {
         logger.info('Validation passed');
@@ -111,11 +102,11 @@ exports.addPersonalOrder = function (req, res, next) {
             if (err) {
                 status = 0;
                 message = err;
-                logger.info(message);
                 makeResponse(res, status, message, data);
             } else {
                 status = 1;
 
+                logger.info('request before pickup driver, %O', request);
                 enlistDeliveryRequest(request).then(
                     function (r) {
                         status = 1;
@@ -125,7 +116,20 @@ exports.addPersonalOrder = function (req, res, next) {
                         status = 0;
                         message = er;
 
-                        var uid = request.uid;
+                        var uid = params.customer.uid;
+                        
+                        logger.info('no picked up agents');
+
+                        var sockets = Socket.getOnlineSockets();
+
+                        for (var i = 0; i < sockets.length; i++) {
+                            var socket = sockets[i];
+
+                            if (socket.id === params.customer.socketID) {
+                                socket.emit('noAgentsAcceptedForOrder', Config.dict.NEW_DELIVERY_REQUEST_NO_AGENT);
+                            }
+                        }
+
 
                         socketController.makeNotification(uid, Config.dict.NEW_DELIVERY_REQUEST_NO_AGENT);
 
@@ -146,9 +150,6 @@ exports.addStoreOrderRequest = function (req, res, next) {
     var schema = {
         type: 'object',
         properties: {
-            order_type: {
-                type: 'string'
-            },
             city: {
                 type: 'string'
             },
@@ -166,35 +167,28 @@ exports.addStoreOrderRequest = function (req, res, next) {
             },
             delivery_price: {
                 type: 'string'
-            },
-            extra_details: {
-                type: 'string'
             }
         }
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
 
     var validationresult = inspector.validate(schema, params);
 
     if (!validationresult.valid) {
         status = 0;
         message = 'not enough params';
-        logger.log(validationresult.format());
-
         makeResponse(res, status, message, data);
     } else {
         logger.info('Validation passed');
 
         var request = params;
-        request.customerUID = JSON.parse(JSON.stringify(params.uid));
-        delete request.uid;
 
         var d = new Date();
         request.timestamp = d.getTime();
         request.date = d.getHours() + ':' + d.getMinutes() + ' - ' + d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
         request.status = 'pending';
+        request.request_time = Date.now();
 
         var dRef = FBase.ref('orders').push();
         request.id = dRef.key;
@@ -203,47 +197,59 @@ exports.addStoreOrderRequest = function (req, res, next) {
                 status = 0;
                 message = err;
             } else {
-                if (request.order_type === 'homeStore') {
-                    console.log('ok, ok... this is a home store');
-                    // just send a notification to the home store owner about it
-                    Notification.notifyHomeStoreOwnerOfNewDeliveryRequest(request.owner.uid).then(
-                        function (success) {
-                            socketController.makeNotification(request.uid, Config.dict.NEW_DELIVERY_REQUEST_REGISTERED).then(
-                                function (s) {
-                                    status = 1;
-                                    makeResponse(res, status, message, data);
-                                },
-                                function (e) {
-                                    status = 0;
-                                    message = e;
-                                    makeResponse(res, status, message, data);
-                                }
-                            );
-                        },
-                        function (error) {
-                            status = 0;
-                            message = error;
-                            makeResponse(res, status, message, data);
+                // if (request.request_type === 'homeStore') {
+                //     console.log('ok, ok... this is a home store');
+                //     // just send a notification to the home store owner about it
+                //     Notification.notifyHomeStoreOwnerOfNewDeliveryRequest(request.owner.uid).then(
+                //         function (success) {
+                //             socketController.makeNotification(request.uid, Config.dict.NEW_DELIVERY_REQUEST_REGISTERED).then(
+                //                 function (s) {
+                //                     status = 1;
+                //                     makeResponse(res, status, message, data);
+                //                 },
+                //                 function (e) {
+                //                     status = 0;
+                //                     message = e;
+                //                     makeResponse(res, status, message, data);
+                //                 }
+                //             );
+                //         },
+                //         function (error) {
+                //             status = 0;
+                //             message = error;
+                //             makeResponse(res, status, message, data);
+                //         }
+                //     );
+                // } else
+                //  {
+                enlistDeliveryRequest(request).then(
+                    function (r) {
+                        status = 1;
+                        makeResponse(res, status, message, data);
+                    },
+                    function (er) {
+                        status = 0;
+                        message = er;
+
+                        var uid = request.uid;
+
+                        var sockets = Socket.getOnlineSockets();
+
+                        for (var i = 0; i < sockets.length; i++) {
+                            var socket = sockets[i];
+                            logger.info(socket.id);
+                            if (socket.id === request.customer.socketID) {
+                                socket.emit('noAgentsAcceptedForOrder', Config.dict.NEW_DELIVERY_REQUEST_NO_AGENT);
+                            }
                         }
-                    );
-                } else {
-                    enlistDeliveryRequest(request).then(
-                        function (r) {
-                            status = 1;
-                            makeResponse(res, status, message, data);
-                        },
-                        function (er) {
-                            status = 0;
-                            message = er;
 
-                            var uid = request.uid;
 
-                            socketController.makeNotification(uid, Config.dict.NEW_DELIVERY_REQUEST_NO_AGENT);
+                        socketController.makeNotification(uid, Config.dict.NEW_DELIVERY_REQUEST_NO_AGENT);
 
-                            makeResponse(res, status, message, data);
-                        }
-                    );
-                }
+                        makeResponse(res, status, message, data);
+                    }
+                );
+                // }
             }
         });
     }
@@ -259,7 +265,7 @@ exports.getOrders = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -282,29 +288,28 @@ exports.getOrders = function (req, res, next) {
 
                 if (params.user.type == 'admin') {
                     for (var key in response) {
-                        if (response[key].status != 'pending')
+                        if (response[key].status != 'pending' && response[key].status != 'rejected')
                             orders.push(response[key]);
                     }
                 } else if (params.user.type == 'agent') {
                     for (var key in response) {
                         if (response[key].agent_id && response[key].agent_id == params.user.uid) {
-                            if (response[key].status != 'pending')
+                            if (response[key].status != 'pending' && response[key].status != 'rejected')
                                 orders.push(response[key]);
                         }
                     }
                 } else if (params.user.type === 'owner') {
                     for (var key in response) {
-                        logger.info(response[key].store.owner);
-                        if (response[key].store.owner && response[key].store.owner.uid == params.user.uid) {
+                        if (response[key].store && response[key].store.owner && response[key].store.owner.uid == params.user.uid) {
                             logger.info('aaaa');
-                            if (response[key].status != 'pending')
+                            if (response[key].status != 'pending' && response[key].status != 'rejected')
                                 orders.push(response[key]);
                         }
                     }
                 } else if (params.user.type === 'customer') {
                     for (var key in response) {
                         if (response[key].customer && response[key].customer.uid == params.user.uid) {
-                            if (response[key].status != 'pending')
+                            if (response[key].status != 'pending' && response[key].status != 'rejected')
                                 orders.push(response[key]);
                         }
                     }
@@ -328,7 +333,7 @@ exports.getOrdersPending = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -386,7 +391,7 @@ exports.getOrdersAccepted = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -443,7 +448,7 @@ exports.getOrdersCompleted = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -499,7 +504,7 @@ exports.completeOrder = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -539,7 +544,7 @@ exports.getOrdersRejected = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -580,6 +585,7 @@ exports.getOrdersRejected = function (req, res, next) {
     }
 }
 
+
 function enlistDeliveryRequest(dRequest, agentsRejectingDelivery) {
     logger.info('agentsRejectingDelivery: %O', agentsRejectingDelivery);
 
@@ -589,49 +595,87 @@ function enlistDeliveryRequest(dRequest, agentsRejectingDelivery) {
     var noAvailableAgent = false;
     var searchingForAgent = true;
 
-    while (searchingForAgent) {
-        logger.info('Trying to find an available agent that wasn\'t asked before. Iteration (%s)', counter);
+    FBase.ref('users').orderByChild('type').equalTo(`agent`).once('value', function (snapshot) {
+        var users = snapshot.val();
 
-        agent = getRandomElements(Socket.getOnlineAgents(), 1)[0];
-
-        if (!agentsRejectingDelivery) {
-            searchingForAgent = false;
-        } else {
-            var notOnTheList = false;
-            for (var n in agentsRejectingDelivery) {
-                if (agent.uid === agentsRejectingDelivery[n]) {
-                    notOnTheList = true;
-                    break;
-                }
-            }
-            if (!notOnTheList) {
-                searchingForAgent = false;
-            }
-        }
-
-        counter++;
-        if (counter === Config.cyclesToRepeatForSelectingAvailableAgent) {
-            noAvailableAgent = true;
-            searchingForAgent = false;
-        }
-    }
-
-    if (noAvailableAgent) {
-        logger.info(Config.dict.DELIVERY_REQUEST_NO_AGENT_AVAILABLE_MESSAGE);
-        defer.reject(Config.dict.DELIVERY_REQUEST_NO_AGENT_AVAILABLE_MESSAGE);
-    } else {
-        if (!agent) {
-            logger.info('No online agents');
+        if (!users) {
+            status = 0;
+            message = 'No agents in database';
+            logger.info(message);
             defer.reject(Config.dict.DELIVERY_REQUEST_NO_AGENT_AVAILABLE_MESSAGE);
         } else {
-            logger.info('Selected agent socket.id: %s', agent.socket.id);
+            var agents = [];
+            var onlineAgents = [];
+            for (var k = 0; k < Socket.getOnlineAgents().length; k++)
+                onlineAgents.push(Socket.getOnlineAgents()[k]);
 
-            agent.socket.emit('deliveryRequest', dRequest);
-            logger.info('Socket (deliveryRequest) --> SENT '.event);
+            for (var u in users) {
+                agents.push(users[u]);
+            }
 
-            defer.resolve(true);
+            logger.info('agents: %O', agents);
+            logger.info('onlineAgents: %O', onlineAgents);
+
+            for (var i = 0; i < agents.length; i++) {
+                var agent = agents[i];
+                if (agent.status === 'paused') {
+                    logger.info('paused agent: %O', agent);
+                    for (var j = 0; j < onlineAgents.length; j++) {
+                        if (agent.uid == onlineAgents[j].uid) {
+                            onlineAgents.splice(j, 1);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            while (searchingForAgent) {
+                // logger.info('Trying to find an available agent that wasn\'t asked before. Iteration (%s)', counter);
+
+                agent = getRandomElements(onlineAgents, 1)[0];
+
+                if (!agentsRejectingDelivery) {
+                    searchingForAgent = false;
+                } else {
+                    var notOnTheList = false;
+                    for (var n in agentsRejectingDelivery) {
+                        if (agent.uid === agentsRejectingDelivery[n]) {
+                            notOnTheList = true;
+                            break;
+                        }
+                    }
+                    if (!notOnTheList) {
+                        searchingForAgent = false;
+                    }
+                }
+
+                counter++;
+                if (counter === Config.cyclesToRepeatForSelectingAvailableAgent) {
+                    noAvailableAgent = true;
+                    searchingForAgent = false;
+                }
+            }
+
+            if (noAvailableAgent) {
+                logger.info(Config.dict.DELIVERY_REQUEST_NO_AGENT_AVAILABLE_MESSAGE);
+                defer.reject(Config.dict.DELIVERY_REQUEST_NO_AGENT_AVAILABLE_MESSAGE);
+            } else {
+                if (!agent) {
+                    logger.info('No online agents');
+                    defer.reject(Config.dict.DELIVERY_REQUEST_NO_AGENT_AVAILABLE_MESSAGE);
+                } else {
+                    logger.info('Selected agent socket.id: %s', agent.socket.id);
+
+                    agent.socket.emit('deliveryRequest', dRequest);
+                    logger.info('Socket (deliveryRequest) --> SENT '.event);
+
+                    defer.resolve(true);
+                }
+            }
+
+
         }
-    }
+    });
 
     return defer.promise;
 }
@@ -666,7 +710,7 @@ exports.rejectDeliveryRequest = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -704,15 +748,24 @@ exports.rejectDeliveryRequest = function (req, res, next) {
 
 
                             params.deliveryRequest.status = 'rejected';
+
+
+                            var sockets = Socket.getOnlineSockets();
+
+                            for (var i = 0; i < sockets.length; i++) {
+                                var socket = sockets[i];
+
+                                if (socket.id === params.deliveryRequest.customer.socketID) {
+                                    socket.emit('noAgentsAcceptedForOrder', Config.dict.NEW_DELIVERY_REQUEST_NO_AGENT);
+                                }
+                            }
+
                             FBase.ref('orders/' + params.deliveryRequest.id).set(params.deliveryRequest, function (erro) {
                                 if (erro) {
                                     status = 0;
                                     message = erro;
                                     makeResponse(res, status, message, data);
                                 } else {
-
-                                    logger.info('deliveryrequest');
-                                    logger.info(params.deliveryRequest);
                                     var uid = params.deliveryRequest.customer.uid;
                                     Socket.makeNotification(uid, Config.dict.NEW_DELIVERY_REQUEST_NO_AGENT).then(
                                         function (s) {
@@ -753,7 +806,7 @@ exports.acceptDeliveryRequest = function (req, res, next) {
     };
 
     var params = req.body;
-    logger.log('params: %O', params);
+    
 
     var validationresult = inspector.validate(schema, params);
 
@@ -779,12 +832,9 @@ exports.acceptDeliveryRequest = function (req, res, next) {
 
 
                 var sockets = Socket.getOnlineSockets();
-                logger.info('customer: %O', params.deliveryRequest.customer);
                 for (var i = 0; i < sockets.length; i++) {
                     var socket = sockets[i];
-                    logger.info(socket.id);
                     if (socket.id === params.deliveryRequest.customer.socketID) {
-                        logger.info('found customer socket');
                         socket.emit('requestAcceptedForCustomer', params.deliveryRequest);
                     }
                 }
@@ -792,10 +842,7 @@ exports.acceptDeliveryRequest = function (req, res, next) {
                 Notification.notifyCustomerOfRequestAcceptance(params.deliveryRequest).then(
                     function (success) {
                         // send customer "bill" notification
-                        var uid = params.deliveryRequest.customerUID;
-
-                        logger.info('notifyCustomerOfRequestAcceptance');
-                        logger.info(params.deliveryRequest);
+                        var uid = params.deliveryRequest.uid;
 
                         Socket.makeNotification(uid, Config.dict.NEW_DELIVERY_REQUEST_ACCEPTED).then(
                             function (s) {
